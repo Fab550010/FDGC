@@ -752,47 +752,42 @@ int check_signature(struct fdgc_info_pass *pass, fdgc_certificates *certs, int *
 				if ( res == 1 )
 					return true;
 			} else if ( pass->sign_header.alg == -37 ) { // RSASSA-PSS
+#ifdef FDGC_DEBUG
 				printf("RSA\n");
 				                                FILE *f = fopen("/tmp/cert.der", "w");
                                 fwrite(certs->certs[i].rawdata.ptr, certs->certs[i].rawdata.len, 1, f);
                                 fclose(f);
+#endif
 
 				int res;
 				RSA *rsa = get_rsa_de(certs, i, err_code);
+#ifdef FDGC_DEBUG
 				RSA_print_fp(stdout, rsa, 0);
+#endif
 
 				unsigned char digest[EVP_MAX_MD_SIZE];
 				unsigned int digest_len = sizeof(digest);
 				res = EVP_Digest((void *)pass->payload.ptr, pass->payload.len, digest, &digest_len, EVP_sha256(), NULL);
 				if ( ! res ) {
-					printf("yo\n");
 					*err_code = FDGC_SIGN_DIGEST_ERR;
 					RSA_free(rsa);
 					continue;
 				}
 
-/*				BIGNUM *e, *n;
-				e = BN_bin2bn(pass->signature.ptr, pass->signature.len/2, NULL);
-				if ( !e ) {
-					*err_code = FDGC_SIGN_BN_ERR;
-					EC_KEY_free(key);
-					continue;
-				}
-				n = BN_bin2bn(pass->signature.ptr+pass->signature.len/2, pass->signature.len/2, NULL);
-				if ( !n ) {
-					*err_code = FDGC_SIGN_BN_ERR;
-					EC_KEY_free(key);
+				int em_len = RSA_size(rsa);
+				char *em = calloc(1, em_len);
+
+				res = RSA_public_decrypt(pass->signature.len, pass->signature.ptr, em, rsa, RSA_NO_PADDING);
+				if ( res != em_len ) {
+					*err_code = FDGC_SIGN_SIG;
+					RSA_free(rsa);
 					continue;
 				}
 
-				RSA *rsa = RSA_new();
-//				RSA_generate_key_ex(rsa, 2048, e, NULL);
-				RSA_set0_key(rsa, n, e, NULL);*/
-
-				res = RSA_verify(NID_sha256, digest, digest_len, pass->signature.ptr, pass->signature.len, rsa);
-				printf("yo : %i\n", res);
-				ERR_print_errors_fp(stdout);
-
+				res = RSA_verify_PKCS1_PSS(rsa, digest, EVP_sha256(), em, -1);
+				RSA_free(rsa);
+				if ( res == 1 )
+					return true;
 
 			} else {
 				*err_code = FDGC_SIGN_INVALID_ALG;
