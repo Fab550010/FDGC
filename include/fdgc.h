@@ -126,6 +126,7 @@
     }
 
     printf("The pass of %s %s born on %s has been decoded and validated\n", p->nam.fn, p->nam.gn, p->dob);
+    printf("Can the holder travel inside the EU ? %s\n", fdgc_valid_pass_eu(p) ? "Yes !" : "No !");
 
     fdgc_free_info_pass(p);
 
