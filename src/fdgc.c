@@ -17,6 +17,8 @@
     along with FDGC.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE
+#include <time.h>
 
 #include "fdgc.h"
 
@@ -656,14 +658,12 @@ RSA *get_rsa_de(fdgc_certificates *certs, int i, int *err_code) {
         res = BIO_write(bio, certs->certs[i].rawdata.ptr, certs->certs[i].rawdata.len);
         x509_cert = d2i_X509_bio(bio, NULL);
         if ( x509_cert == NULL ) {
-                printf("err1\n");
                 *err_code = FDGC_SIGN_INVALID_KEY;
                 BIO_free_all(bio);
                 return NULL;
         }
         EVP_PKEY *evp_key = X509_get_pubkey(x509_cert);
         if ( evp_key == NULL ) {
-                printf("err2\n");
                 *err_code = FDGC_SIGN_INVALID_KEY;
                 BIO_free_all(bio);
                 X509_free(x509_cert);
@@ -671,9 +671,6 @@ RSA *get_rsa_de(fdgc_certificates *certs, int i, int *err_code) {
         }
 	RSA *rsa = EVP_PKEY_get1_RSA(evp_key);
 	if (!rsa) {
-		printf("err3\n");
-                ERR_print_errors_fp(stdout);
-
                 *err_code = FDGC_SIGN_INVALID_KEY;
                 BIO_free_all(bio);
                 X509_free(x509_cert);
@@ -816,6 +813,72 @@ struct fdgc_info_pass *fdgc_get_pass_string(struct fdgc_context *plib, char *qr_
 	}
 	return res;
 }
+
+
+int check_vaccine(struct fdgc_info_pass *pass, int min_days) {
+	struct tm tm;
+	memset(&tm, 0, sizeof(tm));
+	if ( strptime(pass->cat.v.dt, "%Y-%m-%d", &tm) == NULL )
+		return 0;
+	if ( (strcmp(pass->cat.v.mp, "EU/1/20/1528")!=0) && (strcmp(pass->cat.v.mp, "EU/1/20/1507")!=0) && (strcmp(pass->cat.v.mp, "EU/1/21/1529")!=0) && (strcmp(pass->cat.v.mp, "EU/1/20/1525")!=0) )
+		return 0;
+	if ( ( strcmp(pass->cat.v.tg, "840539006") == 0 ) && ( pass->cat.v.dn == pass->cat.v.sd ) && ( time(NULL) - mktime(&tm) > min_days*24*60*60 ) ) 
+		return 1;
+	
+	return 0;
+}
+
+int check_test(struct fdgc_info_pass *pass, int max_hours) {
+	struct tm tm;
+	memset(&tm, 0, sizeof(tm));
+	if ( strptime(pass->cat.t.sc, "%Y-%m-%dT%H:%M:%S%z", &tm) == NULL )
+		return 0;
+	if ( ( strcmp(pass->cat.t.tg, "840539006") == 0 ) && ( strcmp(pass->cat.t.tr, "Not detected")==0 ) && ( time(NULL) - mktime(&tm) < max_hours*60*60 ) )
+		return 1;
+	return 0;
+}
+
+int check_recovery(struct fdgc_info_pass *pass, int max_days) {
+	struct tm tmmin, tmmax, tmtest;
+	memset(&tmmin, 0, sizeof(tmmin));
+	memset(&tmmax, 0, sizeof(tmmax));
+	memset(&tmtest, 0, sizeof(tmtest));
+	if ( ( strptime(pass->cat.r.df, "%Y-%m-%d", &tmmin) == NULL ) || ( strptime(pass->cat.r.du, "%Y-%m-%d", &tmmax) == NULL ) || ( strptime(pass->cat.r.fr, "%Y-%m-%d", &tmtest) == NULL ) )
+		return 0;
+	if ( ( strcmp(pass->cat.r.tg, "840539006") == 0 ) && ( mktime(&tmmin) < time(NULL) ) && ( mktime(&tmmax) > time(NULL) ) && ( mktime(&tmtest) + max_days*24*60*60 > time(NULL) ) ) 
+		return 1;
+	return 0;
+}
+	
+
+int fdgc_valid_pass_eu(struct fdgc_info_pass *pass) {	//last dose + 14 days OR tests < 48h OR recovery < 6 months
+	if (!pass)
+		return 0;
+	if ( pass->cat_type == FDGC_CAT_V ) {
+		return check_vaccine(pass, 14);
+	} else if ( pass->cat_type == FDGC_CAT_T ) {
+		return check_test(pass, 48);
+	} else if ( pass->cat_type == FDGC_CAT_R ) {
+		return check_recovery(pass, 182);
+	} else {
+		return 0;
+	}
+}
+
+int fdgc_valid_pass_fr(struct fdgc_info_pass *pass) { //last dose + 7 days OR tests < 72h OR recovery < 6 months
+	if (!pass)
+		return 0;
+	if ( pass->cat_type == FDGC_CAT_V ) {
+		return check_vaccine(pass, 7);
+	} else if ( pass->cat_type == FDGC_CAT_T ) {
+		return check_test(pass, 72);
+	} else if ( pass->cat_type == FDGC_CAT_R ) {
+		return check_recovery(pass, 182);
+	} else {
+		return 0;
+	}
+}
+
 
 #ifdef ZBAR_SUPPORT
 struct fdgc_info_pass *fdgc_get_pass_img(struct fdgc_context *plib, char *filename, int *err_code) {
@@ -1022,7 +1085,6 @@ fdgc_certificates *update_certs_online(char *url, char *certs_file, int *err_cod
 	}
 
 	if ( certs_file ) {
-		printf("write\n");
 		FILE *f = fopen(certs_file, "w");
 		if (f) {					//Not writing to the cache isn't an error
 			fwrite(core, strlen(core), 1, f);

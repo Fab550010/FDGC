@@ -71,6 +71,24 @@ Parameter :
 * pass as returned by a previous fdgc_get_pass_string() call
 
 
+    _int fdgc_valid_pass_eu(struct fdgc_info_pass *pass);_
+Check that struct fdgc_info_pass passes the EU travel requirements (for vaccines : max doses + 14 days, for tests : less than 48 hours, for recovery : less than 6 months)
+Parameter :
+* pass as return by a previous fdgc_get_pass_string() call
+Return Value :
+* boolean flag, 1 means the certificate passes the requirements, 0 means it does not (and so access should be denied)
+This function handles a NULL parameter (and returns false) so that you can use fdgc_valid_pass_eu(fdgc_get_pass_string(...))
+
+    _int fdgc_valid_pass_fr(struct fdgc_info_pass *pass);_
+Check that struct fdgc_info_pass passes the French internal requirements (for vaccines : max doses + 7 days, for tests : less than 72 hours, for recovery : less than 6 months)
+Parameter :
+* pass as return by a previous fdgc_get_pass_string() call
+Return Value :
+* boolean flag, 1 means the certificate passes the requirements, 0 means it does not (and so access should be denied)
+This function handles a NULL parameter (and returns false) so that you can use fdgc_valid_pass_eu(fdgc_get_pass_string(...))
+
+
+
 FDGC Example
 ------------
 
