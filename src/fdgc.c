@@ -833,7 +833,7 @@ int check_test(struct fdgc_info_pass *pass, int max_hours) {
 	memset(&tm, 0, sizeof(tm));
 	if ( strptime(pass->cat.t.sc, "%Y-%m-%dT%H:%M:%S%z", &tm) == NULL )
 		return 0;
-	if ( ( strcmp(pass->cat.t.tg, "840539006") == 0 ) && ( strcmp(pass->cat.t.tr, "Not detected")==0 ) && ( time(NULL) - mktime(&tm) < max_hours*60*60 ) )
+	if ( ( strcmp(pass->cat.t.tg, "840539006") == 0 ) && ( strcmp(pass->cat.t.tr, "260415000")==0 ) && ( time(NULL) - mktime(&tm) < max_hours*60*60 ) )
 		return 1;
 	return 0;
 }
