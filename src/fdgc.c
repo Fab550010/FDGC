@@ -822,7 +822,7 @@ int check_vaccine(struct fdgc_info_pass *pass, int min_days) {
 		return 0;
 	if ( (strcmp(pass->cat.v.mp, "EU/1/20/1528")!=0) && (strcmp(pass->cat.v.mp, "EU/1/20/1507")!=0) && (strcmp(pass->cat.v.mp, "EU/1/21/1529")!=0) && (strcmp(pass->cat.v.mp, "EU/1/20/1525")!=0) )
 		return 0;
-	if ( ( strcmp(pass->cat.v.tg, "840539006") == 0 ) && ( pass->cat.v.dn == pass->cat.v.sd ) && ( time(NULL) - mktime(&tm) > min_days*24*60*60 ) ) 
+	if ( ( strcmp(pass->cat.v.tg, "840539006") == 0 ) && ( pass->cat.v.dn == pass->cat.v.sd ) && ( time(NULL) - mktime(&tm) >= min_days*24*60*60 ) ) 
 		return 1;
 	
 	return 0;
@@ -833,7 +833,7 @@ int check_test(struct fdgc_info_pass *pass, int max_hours) {
 	memset(&tm, 0, sizeof(tm));
 	if ( strptime(pass->cat.t.sc, "%Y-%m-%dT%H:%M:%S%z", &tm) == NULL )
 		return 0;
-	if ( ( strcmp(pass->cat.t.tg, "840539006") == 0 ) && ( strcmp(pass->cat.t.tr, "260415000")==0 ) && ( time(NULL) - mktime(&tm) < max_hours*60*60 ) )
+	if ( ( strcmp(pass->cat.t.tg, "840539006") == 0 ) && ( strcmp(pass->cat.t.tr, "260415000")==0 ) && ( time(NULL) - mktime(&tm) <= max_hours*60*60 ) )
 		return 1;
 	return 0;
 }
@@ -845,7 +845,7 @@ int check_recovery(struct fdgc_info_pass *pass, int max_days) {
 	memset(&tmtest, 0, sizeof(tmtest));
 	if ( ( strptime(pass->cat.r.df, "%Y-%m-%d", &tmmin) == NULL ) || ( strptime(pass->cat.r.du, "%Y-%m-%d", &tmmax) == NULL ) || ( strptime(pass->cat.r.fr, "%Y-%m-%d", &tmtest) == NULL ) )
 		return 0;
-	if ( ( strcmp(pass->cat.r.tg, "840539006") == 0 ) && ( mktime(&tmmin) < time(NULL) ) && ( mktime(&tmmax) > time(NULL) ) && ( mktime(&tmtest) + max_days*24*60*60 > time(NULL) ) ) 
+	if ( ( strcmp(pass->cat.r.tg, "840539006") == 0 ) && ( mktime(&tmmin) <= time(NULL) ) && ( mktime(&tmmax) >= time(NULL) ) && ( mktime(&tmtest) + max_days*24*60*60 >= time(NULL) ) ) 
 		return 1;
 	return 0;
 }
